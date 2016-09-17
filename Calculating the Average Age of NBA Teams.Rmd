@@ -1,52 +1,58 @@
 ---
 title: "Calculating the Average Age of NBA Teams"
-output: html_notebook
+author: "kyle wurtz"
+date: "September 16, 2016"
+output:
+  html_document:
+    toc: true
+    theme: yeti
+    code_folding: hide
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
-
-```{r}
-plot(cars)
-```
-
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
-
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).
-
-
 ## Overview
+A few days ago, a fellow Denver Nuggets fan posted the following tweets:
 
-Tweets that prompted this investigation:
+- https://twitter.com/denbutsu/status/776051018157076480
+- https://twitter.com/denbutsu/status/776050618175586304
 
-<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Has anyone done up oldest/youngest NBA teams taking into account minutes played? Simple age average seems misleading.</p>&mdash; Joel Rush ⛏ (@denbutsu) <a href="https://twitter.com/denbutsu/status/776051018157076480">September 14, 2016</a></blockquote>
-<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+Being the nerd that I am, I saw this as an excellent excuse to practice my web scraping skills with `rvest` and the R `tidyverse` analysis packages. I get a lot of practice with data analysis with R in my day job as an actuary, but I don't have an excuse to do web scraping very often. I've toyed around with web scraping basketball data in the past, but the resulting analysis usually devolves into a series of unanswerable rabbit holes pretty quickly...so this very straightforward analysis was a welcome change of pace. 
 
-<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Has anyone done up oldest/youngest NBA teams taking into account minutes played? Simple age average seems misleading.</p>&mdash; Joel Rush ⛏ (@denbutsu) <a href="https://twitter.com/denbutsu/status/776050618175586304">September 14, 2016</a></blockquote>
-<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+In addition to showing the analysis and code here on my WordPress site, I've also posted the code [over on my GitHub](https://github.com/kylewurtz/Analysis-of-Average-Age-of-NBA-Teams) in case you want to download the code and play with it yourself. 
+
 
 ## Setup
+Given the straightforward nature of this analysis, there's not a whole lot of setup needed. Note that I'm using the [brand new](https://blog.rstudio.org/2016/09/15/tidyverse-1-0-0/) (seriously...it was released yesterday) `tidyverse` package to easily load all the Hadley goodies like `dplyr`, `tidyr`, etc. Praise be to [Hadley](https://twitter.com/hadleywickham)!
 
 ### Load Packages
-```{r load packages}
+```{r load packages, warning = FALSE, message = FALSE}
 require(tidyverse)
-require(magrittr)
+require(magrittr) # why isn't magritter laoded within `tidyverse`? i can't use %<>% :(
 require(rvest)
 require(ggthemes)
 require(pander)
 ```
 
 ### Inputs
-```{r inputs}
-location_of_output = "/Users/kylewurtz/Dropbox/R/NBA Average Age/Plots"
-location_of_data = "/Users/kylewurtz/Dropbox/R/NBA Average Age/"
+```{r file paths}
+location_of_output = "/Users/kylewurtz/Dropbox/R/NBA Average Age/Plots" # update this if necessary!
 ```
 
+
 ## Work
+Since the analysis here is relatively straightforward, I'll give some background on the structure of this workflow. I guess I'm a bit self-conscious about the structure since it seems like overkill for a simple analysis like this, but I'm a firm believer in starting with a [checklist](https://sivers.org/book/ChecklistManifesto)/template to ensure consistency and help prevent me from making silly mistakes. So even in a simple case like this, I'm using my go-to analysis format that consists of the following four sections:
+
+1. Overview: This is where I briefly explain the purpose of the analysis.
+2. Setup: This is where I perform overhead tasks like loading packages, reading in data files, creating helper functions, etc.
+3. Work: This is where the magic happens, and it often contains several sub-sections (and occasionally a somewhat out-of-place rambling about the structure of my analysis template...).
+4. Conclusion: This is where I summarize the results of the analysis and explain any required next steps. Someone should be able to just read my **Overview** and **Conclusion** sections and understand the purpose and outcome of the analysis.
+
+With that said, this analysis contains three short subsections within the **Work** section. First, we'll scrape the data from Basketball Reference. Then, we'll present the results graphically. And finally, we'll present the results in a tabular form for the people who like numbers more than pretty shapes and colors.
+
 
 ### Scraping the Data
+Admittedly, using web scraping for this example is somewhat overkill. I mean, Basketball Reference has [a page](http://www.basketball-reference.com/leagues/NBA_2016_totals.html) that contains all the data we need and you can download it as a `.csv` with a couple clicks of the mouse...there's really no need for web scraping in this case. But part of the allure of this mini project was to practice some web scraping, so I don't really care if it's overkill...I'm using `rvest`!
 
+Besides, I started this project thinking I was going to need to loop through each of the teams' pages and pull from their per game stats tables. That would have been tedious to do manually, so I figured web scraping would be the best solution. But after some troubles with the web scraping (turns out Basketball Reference is a pain to scrape from in some cases...I think maybe they're populating some tables on the front end, which confuses `rvest` or maybe happens after `rvest` pulls the `.html`? I don't know...it's over my head, but simple CSS selectors weren't working...) I took a step back and realized the players totals page had all the info I needed. At that point, it was easier to just do the web scraping than download the `.csv`.
 
 ```{r scrape totals}
 player_totals = read_html("http://www.basketball-reference.com/leagues/NBA_2016_totals.html")
@@ -55,6 +61,8 @@ player_totals %<>%
   html_node("#totals_stats") %>% 
   html_table()
 ```
+
+Before doing any analysis, we'll also do a little cleanup on what we get from the `html_table` command. The table is already in a very nice format for us to work with, but there are some annoyances with the structure of the Basketball Reference data that we'll have to deal with. See the comments/code below for more info.
 
 ```{r clean up table}
 # glimpse(player_totals)
@@ -69,8 +77,12 @@ player_totals %<>% filter(Rk != "Rk")
 player_totals %<>% filter(Tm != "TOT")
 ```
 
-```{r get average age of every team weighted by minutes played, fig.width = 12}
-player_totals %>% 
+
+### Plotting Average Ages
+Now that we have the data in a solid format, let's create a nice plot that visualizes the average age of each NBA team! Things get a tad complicated because we're not just interested in the weighted average age (using minutes played as the weights) -- we're also interested in the simple average age and *the difference between the two metrics*. There are a lot of ways to visualize this, but I elected to use a bar plot with the x-axis representing the teams in ascending order of weighted average age, the y-axis representing the weighted average age, and the color of the bars representing the simple average age. This provides a fairly elegant way for us to identify teams that break the color gradient (meaning there's a large difference between the weighted and simple average ages).
+
+```{r get average age of every team weighted by minutes played, fig.width = 12, fig.height = 7}
+avg_age_plot = player_totals %>% 
   group_by(Tm) %>% 
   mutate(
     Age = as.numeric(Age),
@@ -90,10 +102,28 @@ player_totals %>%
     ggtitle("Average Age of NBA Teams") +
     theme(axis.title = element_text(), 
           axis.title.x = element_blank(), 
-          axis.title.y = element_text(margin = margin(0, 10, 0, 0))) + 
+          axis.title.y = element_text(margin = margin(0, 15, 0, 0))) + 
     ylab('Avg. Age (Wtd. by MP)') +
     scale_fill_continuous("Avg. Age (Not Weighted)", low = "#56B1F7", high = "#132B43")
+
+ggsave(avg_age_plot, 
+       filename = file.path(location_of_output, "avg_age_plot.png"), 
+       width = 12, height = 7)
+
+avg_age_plot
 ```
+
+It's pretty clear that the Nuggets are one of the youngest teams in the league, regardless of whether you weight age with minutes played. Of course, this is only based on last year's data, and next year's experience may be materially different. If Gallo and Chandler miraculously manage to stay healthy the entire season and the Nuggets are in playoff contention, I'd expect them to move to the right a bit on this graph. With a couple injuries to the feeble veterans or an impressive rookie campaign from one or more of the first round picks, however, the Nuggets might even move a bit to the left...
+
+A few other things stuck out to me on this graph:
+
+1. Minnesota appears to be the one young team whose metrics don't match well. They're younger than the Nuggets when weighting age with minutes played, but they appear to be significantly older when not accounting for minutes played. This is probably because they had some old dogs on the roster (Kevin Garnett, Andre Miller, and Nikola Pekovic come to mind) that didn't get much playing time for one reason or another.
+2. San Antonio really jumps out. They're one of the oldest teams regardless of what metric you use (no surprise there), but their bar is super dark...which means they're by far the oldest team when using a simple average. This is probably due to a similar effect as the one described for Minnesota (in this case, Matt Bonner, Rasual Butler, and Andre Miller -- again...#outlieralert -- are the culprits).
+3. For some reason, I've been thinking of Golden State as a pretty young team, but both metrics point out that they're really not that young...in fact, they're older than most teams in the league! Fortunately for them, most of their stars are still pretty young (even adding Durant), but it'll be interesting to see how they fare as their older role players (looking at you, Iguodala and Bogut) start to deteriorate.
+
+
+### Listing Average Ages and Youngest Ranks
+We'll also present the data in tabular form in case there's anything deceptive about the graphics/color shading in the plot above.
 
 ```{r also show the data in tabular form}
 player_totals %>% 
@@ -108,13 +138,15 @@ player_totals %>%
   ) %>% 
   mutate(
     rnk_wtd = min_rank(wtd_mean_age),
-    rnk_not_wtd = min_rank(mean_age)
+    rnk_not_wtd = min_rank(mean_age),
+    wtd_mean_age = round(wtd_mean_age, 1),
+    mean_age = round(mean_age, 1)
   ) %>% 
-  arrange(wtd_mean_age) %>% 
+  arrange(rnk_wtd) %>% 
   pander()
-  
-  
 ```
 
+Nothing strikes me as unusual or materially different after looking at the numbers underlying the plot above. I'm sure I could dig deeper, but this was supposed to be a quick analysis so I'll wrap up here.
 
 ## Conclusion
+In short, the answer to Joel's question appears to be: yes, regardless of whether you weight age with minutes played, the Nuggets are one of the younger teams in the league. Of course, that may change in the upcoming season, but there's a good chance in my opinion that there will be some offsetting effects (adding the older Chandler will be offset by the introduction of some rookies to the rotation and inevitable injuries to the older guys) and the Nuggets will again be one of the younger teams in the league.
