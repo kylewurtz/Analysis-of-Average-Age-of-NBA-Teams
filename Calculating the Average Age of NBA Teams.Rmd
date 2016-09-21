@@ -12,8 +12,9 @@ output:
 ## Overview
 A few days ago, a fellow Denver Nuggets fan posted the following tweets:
 
-- https://twitter.com/denbutsu/status/776051018157076480
-- https://twitter.com/denbutsu/status/776050618175586304
+https://twitter.com/denbutsu/status/776051018157076480
+
+https://twitter.com/denbutsu/status/776050618175586304
 
 Being the nerd that I am, I saw this as an excellent excuse to practice my web scraping skills with `rvest` and the R `tidyverse` analysis packages. I get a lot of practice with data analysis with R in my day job as an actuary, but I don't have an excuse to do web scraping very often. I've toyed around with web scraping basketball data in the past, but the resulting analysis usually devolves into a series of unanswerable rabbit holes pretty quickly...so this very straightforward analysis was a welcome change of pace. 
 
